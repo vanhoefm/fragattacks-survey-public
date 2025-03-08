@@ -916,6 +916,9 @@ static void mesh_mpm_plink_estab(struct wpa_supplicant *wpa_s,
 		MAC2STR(sta->addr));
 
 	if (conf->security & MESH_CONF_SEC_AMPE) {
+		wpa_s->last_tk_len = sta->mtk_len;
+		memcpy(wpa_s->last_tk, sta->mtk, sta->mtk_len);
+
 		wpa_hexdump_key(MSG_DEBUG, "mesh: MTK", sta->mtk, sta->mtk_len);
 		wpa_drv_set_key(wpa_s, -1,
 				wpa_cipher_to_alg(conf->pairwise_cipher),

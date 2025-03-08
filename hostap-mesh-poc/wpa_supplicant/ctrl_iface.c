@@ -1011,6 +1011,13 @@ static int wpa_supplicant_ctrl_iface_get(struct wpa_supplicant *wpa_s,
 	} else if (os_strcmp(cmd, "tls_library") == 0) {
 		res = tls_get_library_version(buf, buflen);
 #ifdef CONFIG_TESTING_OPTIONS
+	} else if (os_strcmp(cmd, "tk") == 0) {
+		if (wpa_s->last_tk_len == 0)
+			res = os_snprintf(buf, buflen, "none");
+		else
+			res = wpa_snprintf_hex(buf, buflen, wpa_s->last_tk,
+					       wpa_s->last_tk_len);
+		return res;
 	} else if (os_strcmp(cmd, "anonce") == 0) {
 		return wpa_snprintf_hex(buf, buflen,
 					wpa_sm_get_anonce(wpa_s->wpa),

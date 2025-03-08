@@ -625,7 +625,7 @@ CONFIG_IBSS_RSN=y
 #CONFIG_PMKSA_CACHE_EXTERNAL=y
 
 # Mesh Networking (IEEE 802.11s)
-#CONFIG_MESH=y
+CONFIG_MESH=y
 
 # Background scanning modules
 # These can be used to request wpa_supplicant to perform background scanning
@@ -670,7 +670,7 @@ CONFIG_DPP2=y
 # Experimental implementation based on IEEE P802.11z/D2.6 and the protocol
 # design is still subject to change. As such, this should not yet be enabled in
 # production use.
-#CONFIG_PASN=y
+CONFIG_PASN=y
 
 # Disable support for Radio Measurement (IEEE 802.11k) and supported operating
 # class indication. Removing these is not recommended since they can help the
@@ -686,3 +686,5 @@ CONFIG_DPP2=y
 
 # Wi-Fi Aware unsynchronized service discovery (NAN USD)
 #CONFIG_NAN_USD=y
+
+CONFIG_TESTING_OPTIONS=y
