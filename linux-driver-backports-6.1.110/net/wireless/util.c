@@ -813,6 +813,29 @@ bool ieee80211_is_valid_amsdu(struct sk_buff *skb, bool mesh_hdr)
 }
 EXPORT_SYMBOL(ieee80211_is_valid_amsdu);
 
+static bool detect_amsdu_aggregation_attack(struct ethhdr *eth, struct sk_buff *skb, enum nl80211_iftype iftype)
+{
+	int offset;
+
+	/** Non-mesh case can be directly compared */
+	if (iftype != NL80211_IFTYPE_MESH_POINT)
+		return memcmp(eth->h_dest, rfc1042_header, 6) == 0;
+
+	offset = __ieee80211_get_mesh_hdrlen(eth->h_dest[0]);
+	if (offset == 6) {
+		/** Mesh case with empty address extension field */
+		return memcmp(eth->h_source, rfc1042_header, 6) == 0;
+	} else if (offset + 6 <= skb->len) {
+		/** Mesh case with non-empty address extension field */
+		uint8_t temp[6];
+
+		skb_copy_bits(skb, offset, temp, 6);
+		return memcmp(temp, rfc1042_header, 6) == 0;
+	}
+
+	return false;
+}
+
 void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 			      const u8 *addr, enum nl80211_iftype iftype,
 			      const unsigned int extra_headroom,
@@ -858,7 +881,7 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 		if (subframe_len > remaining)
 			goto purge;
 		/* mitigate A-MSDU aggregation injection attacks */
-		if (ether_addr_equal(hdr.eth.h_dest, rfc1042_header))
+		if (offset == 0 && detect_amsdu_aggregation_attack(&hdr.eth, skb, iftype))
 			goto purge;
 
 		offset += sizeof(struct ethhdr);
