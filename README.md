@@ -20,11 +20,19 @@ This repository contains the code and some of the data used in the paper *Fragil
 
 <a id="survey-results"></a>
 ### 2.1. Detailed Survey Results
+### 2.1.1 Survey Results
 
 Table 1 in our paper gives the percentage of vulnerable APs out of those that met the test preconditions, i.e., out of the actual tested APs. The below table contains exactly how many APs were vulnerable followed by exactly how many APs were tested. Notice that the _Plain. full_ (CVE-2020-
 26140) and _Plain. frag._ (CVE-2020-26143) tests have the same preconditions.
 
 ![Example output of the survey tool](survey-detials.png)
+
+### 2.1.2 Vendor Analyse
+Table 3 below presents the percentage of vulnerable APs for each vendor. These percentages were calculated based only on the networks that met the preconditions for the test.
+![Vendor survey results percentages](survey-vendors-percentages.png)
+
+Table 4 below shows the total number of vulnerable APs for each vendor. The first number is the number of vulnerable APs, followed by the number of APs that met the preconditions for performing the test.
+![Vendor survey results absolute](survey-vendors-absolute.png)
 
 <a id="survey-prerequisites"></a>
 ### 2.2. Prerequisites
