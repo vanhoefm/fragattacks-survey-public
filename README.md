@@ -28,7 +28,7 @@ Table 1 in our paper gives the percentage of vulnerable APs out of those that me
 ![Example output of the survey tool](survey-detials.png)
 
 ### 2.1.2 Vendor Analyse
-Table 3 below presents the percentage of vulnerable APs for each vendor. These percentages were calculated based only on the networks that met the preconditions for the test.
+Table 3 below presents the percentage of vulnerable APs for each vendor. These percentages are calculated based only on the networks that met the preconditions for the test.
 ![Vendor survey results percentages](survey-vendors-percentages.png)
 
 Table 4 below shows the total number of vulnerable APs for each vendor. The first number is the number of vulnerable APs, followed by the number of APs that met the preconditions for performing the test.
