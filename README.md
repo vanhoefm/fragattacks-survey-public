@@ -207,11 +207,11 @@ Table 1 in our paper gives the percentage of vulnerable APs out of those that me
 <a id="appendix-vendors"></a>
 ### 4.2. Vendor Analysis
 
-Table 3 below presents the percentage of vulnerable APs for each vendor. These percentages are calculated based only on the networks that met the preconditions for the test, for City A and B in 2025. Vendors with fewer than 10 tested APs are combined into the "other" group.
+Table 3 below presents the percentage of vulnerable APs for each vendor. These percentages are calculated based only on the networks that met the preconditions for the test, for City A, B and C in 2025. Vendors with fewer than 10 tested APs are combined into the "other" group.
 
 ![Vendor survey results percentages](survey-vendors-percentages.png)
 
-Table 4 below shows how the percentage in the above Table 3 is calculated. More precisely, this table contains the total number of vulnerable APs for each vendor, followed by the number of APs that met the preconditions for performing the test. These numbers are based on the surveys in City A and B in 2025. Vendors with fewer than 10 tested APs are combined into the "other" group.
+Table 4 below shows how the percentage in the above Table 3 is calculated. More precisely, this table contains the total number of vulnerable APs for each vendor, followed by the number of APs that met the preconditions for performing the test. These numbers are based on the surveys in City A, B and C in 2025. Vendors with fewer than 10 tested APs are combined into the "other" group.
 
 ![Vendor survey results absolute](survey-vendors-absolute.png)
 
