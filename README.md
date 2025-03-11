@@ -7,42 +7,28 @@ This repository contains the code and some of the data used in the paper *Fragil
 
 - [1. Table of Concents](#toc)
 - [2. FragAttack Survey](#survey)
-	- [2.1. Detailed Survey Results](#survey-results)
-	- [2.2. Prerequisites](#survey-prerequisites)
-	- [2.3. Usage of the Code](#survey-usage)
-	- [2.4. Other Remarks](#survey-other)
+	- [2.1. Prerequisites](#survey-prerequisites)
+	- [2.2. Usage of the Code](#survey-usage)
+	- [2.3. Other Remarks](#survey-other)
 - [3. Mesh A-MSDU Attack and Defense](#mesh)
 	- [3.1. Proof-of-Concept Attack](#mesh-poc)
 	- [3.2. Proof-of-Concept Defence](#mesh-defence)
+- [4. Appendix: Detailed Data](#appendix)
+	- [4.1. Cities and ISP Analysis](#appendix-cities-isp)
+	- [4.2. Vendor Analysis](#appendix-vendors)
 
 <a id="survey"></a>
 ## 2. FragAttack Survey
 
-<a id="survey-results"></a>
-### 2.1. Detailed Survey Results
-### 2.1.1 Cities and ISP analyse
-
-Table 1 in our paper gives the percentage of vulnerable APs out of those that met the test preconditions, i.e., out of the actual tested APs. The below table contains exactly how many APs were vulnerable followed by exactly how many APs were tested. Notice that the _Plain. full_ (CVE-2020-
-26140) and _Plain. frag._ (CVE-2020-26143) tests have the same preconditions.
-
-![Example output of the survey tool](survey-detials.png)
-
-### 2.1.2 Vendor Analyse
-Table 3 below presents the percentage of vulnerable APs for each vendor. These percentages are calculated based only on the networks that met the preconditions for the test.
-![Vendor survey results percentages](survey-vendors-percentages.png)
-
-Table 4 below shows the total number of vulnerable APs for each vendor. The first number is the number of vulnerable APs, followed by the number of APs that met the preconditions for performing the test.
-![Vendor survey results absolute](survey-vendors-absolute.png)
-
 <a id="survey-prerequisites"></a>
-### 2.2. Prerequisites
+### 2.1. Prerequisites
 
 To conduct the Wi-Fi surveys, a PC running the Python scripts and two Wi-Fi dongles are necessary.
 
 The Python scripts are built upon the 'fragattacks' repository by Mathy Vanhoef. Ensure that all [preconditions described in that repository are met](https://github.com/vanhoefm/fragattacks?tab=readme-ov-file#3-prerequisites) before running the script. In particular, ensure to use the patched FragAttack drivers are used, or that a recent kernel is used that by-default includes the needed [driver injection patches](https://github.com/vanhoefm/wifi-injection). This is necessary, because (older) drivers may otherwise overwrite fields of injected frames, in particular the fragment number field, causing some of our test to no longer work.
 
 <a id="survey-usage"></a>
-### 2.3. Usage of the Code
+### 2.2. Usage of the Code
 
 The core functionality of the code is in `main.py`, which relies on `tests.py` for functions that construct Wi-Fi frames used in the tests. Since surveys may need to be conducted in segments due to factors like battery limitations or device disconnections, the collected data must be merged before analysis. This can be done using the `combine.py` script.
 
@@ -55,7 +41,7 @@ If everything is configured properly, the code will have output as follows:
 ![Example output of the survey tool](./example.png)
 
 <a id="survey-other"></a>
-### 2.4. Other Remarks
+### 2.3. Other Remarks
 
 - During our survey, we also captured beacon and probe responses to afterwards be able to query for network properties. This can be done using the command `sudo tcpdump -ni wlan3 -w capture.pcap "wlan[0] == 0x50 || wlan[0] == 0x8`.
 - Among other things, we inspected the beacon and probe responses for SSP A-MSDU support. This support be advertised in the RSN and/or RSNX element. The files [`spp_amsdu_rsn.pcapng`](spp_amsdu_rsn.pcapng) and [`spp_amsdu_rsnx.pcapng`](spp_amsdu_rsnx.pcapng) contain examples of this, respectively.
@@ -206,4 +192,26 @@ Specifically, the following patch prevents the attack:
 	 
 		        offset += sizeof(struct ethhdr);
 
+
+<a id="appendix"></a>
+## 4. Appendix: Detailed Data
+
+<a id="appendix-cities-isp"></a>
+### 4.1 Cities and ISP Analysis
+
+Table 1 in our paper gives the percentage of vulnerable APs out of those that met the test preconditions, i.e., out of the actual tested APs. The below table contains exactly how many APs were vulnerable followed by exactly how many APs were tested. Notice that the _Plain. full_ (CVE-2020-
+26140) and _Plain. frag._ (CVE-2020-26143) tests have the same preconditions.
+
+![Example output of the survey tool](survey-detials.png)
+
+<a id="appendix-vendors"></a>
+### 4.2. Vendor Analysis
+
+Table 3 below presents the percentage of vulnerable APs for each vendor. These percentages are calculated based only on the networks that met the preconditions for the test, for City A and B in 2025. Vendors with fewer than 10 tested APs are combined into the "other" group.
+
+![Vendor survey results percentages](survey-vendors-percentages.png)
+
+Table 4 below shows how the percentage in the above Table 3 is calculated. More precisely, this table contains the total number of vulnerable APs for each vendor, followed by the number of APs that met the preconditions for performing the test. These numbers are based on the surveys in City A and B in 2025. Vendors with fewer than 10 tested APs are combined into the "other" group.
+
+![Vendor survey results absolute](survey-vendors-absolute.png)
 
