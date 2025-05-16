@@ -1497,7 +1497,10 @@ static void eap_sm_parseEapResp(struct eap_sm *sm, const struct wpabuf *resp)
 		return;
 	}
 
-	sm->respId = hdr->identifier;
+	// Simulate more permissive Enterprise 802.1X networks that don't enforce
+	// strict matching of request/response IDs for EAP frames.
+	//sm->respId = hdr->identifier;
+	sm->respId = sm->currentId;
 
 	if (hdr->code == EAP_CODE_RESPONSE)
 		sm->rxResp = TRUE;
