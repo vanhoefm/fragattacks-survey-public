@@ -36,11 +36,11 @@ testedNetworks.set_index("ID", inplace=True)
 channels = [1, 6, 11]
 
 # Wi-Fi dongles that are used for the scan
-dongle1_inf = 'wlx24050f9e33dc'
-dongle1_mac = '24:05:0f:9e:33:dc'
+dongle1_inf = 'wlan0'
+dongle1_mac = '02:00:00:00:00:00'
 
-dongle2_inf = 'wlx24050f9e3454'
-dongle2_mac = '24:05:0f:9e:34:54'
+dongle2_inf = 'wlan1'
+dongle2_mac = '02:00:00:00:01:00'
 
 # OUI numbers detected only by one vendor in a Wi-Fi survey. Using this to help already finding the vendor.
 vendor_dict = {
@@ -67,6 +67,9 @@ vendor_dict = {
 
 # variable to get the network that is currently tested. Needed to count beacon frames.
 currentTestNetwork = ""
+
+def callback_nothing(packet):
+    pass
 
 # Function that will be called on every received packet
 def callback(packet):
@@ -200,7 +203,7 @@ def callback(packet):
         # check EAPOL Forward
         # <class 'scapy.packet.Padding'>
         if  packet[Dot11].addr1 == dongle2_mac and packet[Dot11].addr3 == dongle1_mac:
-            print(Fore.GREEN + "FORWARDED PACKET CAPTURED" + Style.RESET_ALL)
+            print(Fore.GREEN + "FORWARDED PACKET CAPTURED: EAPOL forward (CVE-2020-26139)" + Style.RESET_ALL)
             testedNetworks.at[packet[Dot11].addr2, "eapol-forward"] = True
 
         # check EAPOL AMSDU
@@ -208,7 +211,7 @@ def callback(packet):
         # addr1 = (RA=DA), addr2 = (TA=BSSID), addr3 = SA
         if packet[Dot11].addr1 == 'ff:ff:ff:ff:ff:ff' and packet[Dot11].addr3 == dongle1_mac:
             # can be from the AMSDU test, the plaintext test, or the fragmented plaintext test. (no addr3 would be different)
-            print(Fore.GREEN + "BROADCAST PACKET CAPTURED" + Style.RESET_ALL)
+            print(Fore.GREEN + "BROADCAST PACKET CAPTURED: Fake EAPOL (CVE-2020-26144)" + Style.RESET_ALL)
             testedNetworks.at[packet[Dot11].addr2, "eapol-amsdu"] = True
 
         # check plaintext (fragmented) broadcast
@@ -216,13 +219,14 @@ def callback(packet):
             if packet[Dot11].addr3 in connectedDevices["MACDevice"].tolist() and packet.haslayer(Dot11CCMP):
                 ## plaintext fragmented broadcast, data = 116 bytes
                 ## plaintext broadcast, data = 84 bytes
-                print(Fore.GREEN + "PLAINTEXT BROADCAST PACKET CAPTURED" + Style.RESET_ALL)
-                print(len(raw(packet[Dot11CCMP])))
 
                 if len(raw(packet[Dot11CCMP])) < 95:
                     testedNetworks.at[packet[Dot11].addr2, "plaintext-fragmented-broadcast"] = True
+                    print(Fore.GREEN + "PLAINTEXT BROADCAST PACKET CAPTURED: Plain. frag. (CVE-2020-26143)" + Style.RESET_ALL)
                 else:
                     testedNetworks.at[packet[Dot11].addr2, "plaintext-broadcast"] = True
+                    print(Fore.GREEN + "PLAINTEXT BROADCAST PACKET CAPTURED: Plain. full (CVE-2020-26140)" + Style.RESET_ALL)
+                print(len(raw(packet[Dot11CCMP])))
 
 
         # found a device that is connected to the network, necessary for ping to the server (valid mac and ip address)
@@ -252,7 +256,7 @@ def callback(packet):
             # FAILURE is eap_code == 4, mogelijk om er ook nog uit te halen
             # type is normaal EAP-TLS == 13
             if packet.getlayer(EAP).type != 1:
-                print(Fore.GREEN + "PLAINTEXT FRAGMENTED, ENTERPRISE " + Style.RESET_ALL)
+                print(Fore.GREEN + "ENTERPRISE: Spoof. A-MSDU (CVE-2020-24588)" + Style.RESET_ALL)
                 testedNetworks.at[packet[Dot11].addr2, "fragmentation-enterprise"] = True
 
 tested = []
@@ -284,6 +288,7 @@ def plaintextTests(router, device):
 def setMonitorMode(inf):
     os.system("ifconfig " + inf + " down")
     os.system("iw " + inf + " set type monitor")
+    os.system("iw " + inf + " set monitor active || true")
     os.system("ifconfig " + inf + " up")
 
 if __name__ == "__main__":
@@ -292,8 +297,14 @@ if __name__ == "__main__":
     setMonitorMode(dongle1_inf)
     setMonitorMode(dongle2_inf)
 
+    # When kernel modules just got reloaded, the first start of AsyncSniffer doesn't return frames.
+    # No idea why.
+    # But it's solved by starting a dummy sniffer, stopping it, and then starting the real sniffer.
+    t = AsyncSniffer(iface=dongle2_inf, filter="wlan type data or wlan type mgt", prn=callback_nothing, store=False, timeout=0.5)
+    t.join()
+
     # start sniffing
-    t = AsyncSniffer(iface=[dongle2_inf, dongle1_inf], filter="wlan type data or wlan type mgt", prn=callback, store=False)
+    t = AsyncSniffer(iface=[dongle2_inf, dongle1_inf], prn=callback, store=False)
     t.start()
 
     # make file for saving the times

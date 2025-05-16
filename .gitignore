@@ -1,0 +1,4 @@
+venv/
+testedNetworks.csv
+timesRounds.txt
+__pycache__/
