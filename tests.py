@@ -80,7 +80,7 @@ def eapolAmsdu(router_mac, interface, sender_mac):
                 / SNAP() \
                 / IP(src="127.0.0.1", dst="127.0.0.1") \
                 / ICMP(type=8) \
-                / Raw(b'This is a test, see survey.anonimized.com')
+                / Raw(b'This is a test, see survey.anonimized_.com')
 
         frame = header / subframe1 / subframe2
         sendArray.append(frame)
@@ -109,7 +109,7 @@ def eapolAmsduValidSenderMac(router_macList, macList, interface):
                     / SNAP() \
                     / IP(src="127.0.0.1", dst="127.0.0.1") \
                     / ICMP(type=8) \
-                    / Raw(b'This is a test, see survey.anonimized.com')
+                    / Raw(b'This is a test, see survey.anonimized_.com')
 
             frame = header / subframe1 / subframe2
             sendArray.append(frame)
@@ -133,7 +133,7 @@ def eapolForward(router_mac, interface, sender_mac, recipient_mac):
                 / LLC() \
                 / SNAP() \
                 / EAPOL() \
-                / Raw(b'This is a test, see survey.anonimized.com')
+                / Raw(b'This is a test, see survey.anonimized_.com')
 
         sendArray.append(frame)
 
@@ -161,7 +161,7 @@ def plaintext(router_macList, macList, interface, indexList):
                         / SNAP() \
                         / IP(src=j, dst=IP_SERVER) \
                         / ICMP(type=8) \
-                        / Raw(b'plaintext test, see survey.anonimized.com' + bytes(str(indexList[i]), 'UTF-8'))
+                        / Raw(b'plaintext test, see survey.anonimized_.com' + bytes(str(indexList[i]), 'UTF-8'))
 
                 sendArray.append(frame)
                 #sendp(frame, iface=interface) # sendArray isn't reliable for some reason
@@ -185,7 +185,7 @@ def plaintext(router, device, index):
                         / SNAP() \
                         / IP(src=j, dst=IP_SERVER) \
                         / ICMP(type=8) \
-                        / Raw(b'plaintext test, see survey.anonimized.com' + bytes(str(index), 'UTF-8'))
+                        / Raw(b'plaintext test, see survey.anonimized_.com' + bytes(str(index), 'UTF-8'))
 
                 sendArray.append(frame)
     return sendArray
@@ -210,7 +210,7 @@ def plaintextFragmented(router_macList, macList, interface, indexList):
                           / SNAP() \
                           / IP(src=j, dst=IP_SERVER) \
                           / ICMP(type=8) \
-                          / Raw(b'This is a test, see survey.anonimized.com') \
+                          / Raw(b'This is a test, see survey.anonimized_.com') \
                           / Raw(b'plaintext_ping_fragmented_server' + bytes(str(indexList[i]), 'UTF-8'))
 
                 payload = raw(payload)
@@ -250,7 +250,7 @@ def plaintextFragmented(router, device, index):
                       / SNAP() \
                       / IP(src=j, dst=IP_SERVER) \
                       / ICMP(type=8) \
-                      / Raw(b'This is a test, see survey.anonimized.com') \
+                      / Raw(b'This is a test, see survey.anonimized_.com') \
                       / Raw(b'plaintext_ping_fragmented_server' + bytes(str(index), 'UTF-8'))
 
             payload = raw(payload)
@@ -298,7 +298,7 @@ def plaintextBroadcast(router_macList, macList, interface):
                 / SNAP() \
                 / IP(src="127.0.0.1", dst="127.0.0.1") \
                 / ICMP(type=8) \
-                / Raw(b'This is a test, see survey.anonimized.com aaaaaaaaaaaaaaaa') \
+                / Raw(b'This is a test, see survey.anonimized_.com aaaaaaaaaaaaaaaa') \
 
             sendArray.append(frame)
 
@@ -321,7 +321,7 @@ def plaintextBroadcast(router, device):
             / SNAP() \
             / IP(src="127.0.0.1", dst="127.0.0.1") \
             / ICMP(type=8) \
-            / Raw(b'This is a test, see survey.anonimized.com aaaaaaaaaaaaaaaa') \
+            / Raw(b'This is a test, see survey.anonimized_.com aaaaaaaaaaaaaaaa') \
 
         sendArray.append(frame)
 
@@ -345,7 +345,7 @@ def plaintextBroadcastFragmented(router_macList, macList, interface):
                     / SNAP() \
                     / IP(src="127.0.0.1", dst="127.0.0.1") \
                     / ICMP(type=8) \
-                    / Raw(b'This is a test, see survey.anonimized.com') \
+                    / Raw(b'This is a test, see survey.anonimized_.com') \
 
             payload = raw(payload)
             lenPayload = len(payload)
@@ -381,7 +381,7 @@ def plaintextBroadcastFragmented(router, device):
                 / SNAP() \
                 / IP(src="127.0.0.1", dst="127.0.0.1") \
                 / ICMP(type=8) \
-                / Raw(b'This is a test, see survey.anonimized.com') \
+                / Raw(b'This is a test, see survey.anonimized_.com') \
 
         payload = raw(payload)
         lenPayload = len(payload)
