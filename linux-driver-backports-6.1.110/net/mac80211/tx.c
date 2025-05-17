@@ -36,6 +36,9 @@
 #include "wme.h"
 #include "rate.h"
 
+/* defined as module paramater in rx.c */
+extern bool allow_eapol_forward;
+
 /* misc utils */
 
 static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
@@ -567,7 +570,7 @@ ieee80211_tx_h_check_control_port_protocol(struct ieee80211_tx_data *tx)
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 
 	if (unlikely(tx->sdata->control_port_protocol == tx->skb->protocol)) {
-		if (tx->sdata->control_port_no_encrypt)
+		if (tx->sdata->control_port_no_encrypt || allow_eapol_forward)
 			info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 		info->control.flags |= IEEE80211_TX_CTRL_PORT_CTRL_PROTO;
 		info->flags |= IEEE80211_TX_CTL_USE_MINRATE;
@@ -2640,6 +2643,11 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	ethertype = (skb->data[12] << 8) | skb->data[13];
 	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA);
 
+	if (sdata->vif.type == NL80211_IFTYPE_AP) {
+		if (cpu_to_be16(ethertype) == sdata->control_port_protocol)
+			skb->protocol = sdata->control_port_protocol;
+	}
+
 	if (!sdata->vif.valid_links)
 		chanctx_conf =
 			rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
@@ -2862,7 +2870,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 		     (sdata->vif.type != NL80211_IFTYPE_OCB) &&
 		     !multicast && !authorized &&
 		     (cpu_to_be16(ethertype) != sdata->control_port_protocol ||
-		      !ieee80211_is_our_addr(sdata, skb->data + ETH_ALEN, NULL)))) {
+		      !(ieee80211_is_our_addr(sdata, skb->data + ETH_ALEN, NULL) || allow_eapol_forward)))) {
 #ifdef CPTCFG_MAC80211_VERBOSE_DEBUG
 		net_info_ratelimited("%s: dropped frame to %pM (unauthorized port)\n",
 				    sdata->name, hdr.addr1);
@@ -2906,6 +2914,9 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 		encaps_data = NULL;
 		encaps_len = 0;
 	}
+
+	if (cpu_to_be16(ethertype) == sdata->control_port_protocol)
+		skb->protocol = sdata->control_port_protocol;
 
 	skb_pull(skb, skip_header_bytes);
 	head_need = hdrlen + encaps_len + meshhdrlen - skb_headroom(skb);
@@ -3786,6 +3797,7 @@ begin:
 			     tx.sdata->vif.type != NL80211_IFTYPE_OCB &&
 			     !is_multicast_ether_addr(hdr->addr1) &&
 			     !test_sta_flag(tx.sta, WLAN_STA_AUTHORIZED) &&
+			     !allow_eapol_forward &&
 			     (!(info->control.flags &
 				IEEE80211_TX_CTRL_PORT_CTRL_PROTO) ||
 			      !ieee80211_is_our_addr(tx.sdata, hdr->addr2,

@@ -23,6 +23,10 @@
 #include "core.h"
 #include "rdev-ops.h"
 
+static int amsdu_spoof_protection;
+module_param(amsdu_spoof_protection, int, 0644);
+MODULE_PARM_DESC(amsdu_spoof_protection,
+		 "Whether to disable (0), enable (1), or enable with mesh defense (2)");
 
 const struct ieee80211_rate *
 ieee80211_get_response_rate(struct ieee80211_supported_band *sband,
@@ -836,6 +840,21 @@ static bool detect_amsdu_aggregation_attack(struct ethhdr *eth, struct sk_buff *
 	return false;
 }
 
+static bool check_amsdu_aggregation_attack(struct ethhdr *eth, struct sk_buff *skb, enum nl80211_iftype iftype)
+{
+	if (iftype == NL80211_IFTYPE_AP)
+		printk("check_amsdu_aggregation_attack: amsdu_spoof_protection=%d\n", amsdu_spoof_protection);
+
+	if (amsdu_spoof_protection == 0)
+		return false;
+	else if (amsdu_spoof_protection == 1)
+		return memcmp(eth->h_dest, rfc1042_header, 6) == 0;
+	else if (amsdu_spoof_protection == 2)
+		return detect_amsdu_aggregation_attack(eth, skb, iftype);
+
+	return false;
+}
+
 void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 			      const u8 *addr, enum nl80211_iftype iftype,
 			      const unsigned int extra_headroom,
@@ -881,7 +900,7 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 		if (subframe_len > remaining)
 			goto purge;
 		/* mitigate A-MSDU aggregation injection attacks */
-		if (offset == 0 && detect_amsdu_aggregation_attack(&hdr.eth, skb, iftype))
+		if (offset == 0 && check_amsdu_aggregation_attack(&hdr.eth, skb, iftype))
 			goto purge;
 
 		offset += sizeof(struct ethhdr);

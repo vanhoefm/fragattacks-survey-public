@@ -33,6 +33,16 @@
 #include "wme.h"
 #include "rate.h"
 
+bool allow_eapol_forward;
+module_param(allow_eapol_forward, bool, 0644);
+MODULE_PARM_DESC(allow_eapol_forward,
+		 "Whether to allow forwarding of EAPOL frames");
+
+static int allow_plaintext;
+module_param(allow_plaintext, int, 0644);
+MODULE_PARM_DESC(allow_plaintext,
+		 "Whether to allow full (bit 0) or fragmented (bit 1) plaintext frames");
+
 /*
  * monitor mode reception
  *
@@ -2552,11 +2562,19 @@ bool ieee80211_is_our_addr(struct ieee80211_sub_if_data *sdata,
 /*
  * requires that rx->skb is a frame with ethernet header
  */
-static bool ieee80211_frame_allowed(struct ieee80211_rx_data *rx, __le16 fc)
+static bool ieee80211_frame_allowed(struct ieee80211_rx_data *rx, __le16 fc, bool was_fragmented)
 {
 	static const u8 pae_group_addr[ETH_ALEN] __aligned(2)
 		= { 0x01, 0x80, 0xC2, 0x00, 0x00, 0x03 };
 	struct ethhdr *ehdr = (struct ethhdr *) rx->skb->data;
+
+	/*
+	 * If requested by experiments, always allow plaintext full frames,
+	 * or only allow fragmented plaintext frames.
+	 */
+	if (((allow_plaintext & 1) && !was_fragmented) ||
+	    ((allow_plaintext & 2) && was_fragmented))
+		return true;
 
 	/*
 	 * Allow EAPOL frames to us/the PAE group address regardless of
@@ -2564,7 +2582,8 @@ static bool ieee80211_frame_allowed(struct ieee80211_rx_data *rx, __le16 fc)
 	 * all other destination addresses for them.
 	 */
 	if (unlikely(ehdr->h_proto == rx->sdata->control_port_protocol))
-		return ieee80211_is_our_addr(rx->sdata, ehdr->h_dest, NULL) ||
+		return allow_eapol_forward ||
+		       ieee80211_is_our_addr(rx->sdata, ehdr->h_dest, NULL) ||
 		       ether_addr_equal(ehdr->h_dest, pae_group_addr);
 
 	if (ieee80211_802_1x_port_control(rx) ||
@@ -2580,7 +2599,8 @@ static void ieee80211_deliver_skb_to_local_stack(struct sk_buff *skb,
 	struct ieee80211_sub_if_data *sdata = rx->sdata;
 	struct net_device *dev = sdata->dev;
 
-	if (unlikely((skb->protocol == sdata->control_port_protocol ||
+	/* This was commented out to enable testing of the EAPOL forward attack */
+	/*if (unlikely((skb->protocol == sdata->control_port_protocol ||
 		     (skb->protocol == cpu_to_be16(ETH_P_PREAUTH) &&
 		      !sdata->control_port_no_preauth)) &&
 		     sdata->control_port_over_nl80211)) {
@@ -2589,7 +2609,7 @@ static void ieee80211_deliver_skb_to_local_stack(struct sk_buff *skb,
 
 		cfg80211_rx_control_port(dev, skb, noencrypt);
 		dev_kfree_skb(skb);
-	} else {
+	} else*/ {
 		struct ethhdr *ehdr = (void *)skb_mac_header(skb);
 
 		memset(skb->cb, 0, sizeof(skb->cb));
@@ -2609,7 +2629,8 @@ static void ieee80211_deliver_skb_to_local_stack(struct sk_buff *skb,
 		 * be the PAE group address, unless the hardware allowed them
 		 * through in 802.3 offloaded mode.
 		 */
-		if (unlikely(skb->protocol == sdata->control_port_protocol &&
+		if (unlikely(!allow_eapol_forward &&
+		             skb->protocol == sdata->control_port_protocol &&
 			     !ether_addr_equal(ehdr->h_dest, sdata->vif.addr)))
 			ether_addr_copy(ehdr->h_dest, sdata->vif.addr);
 
@@ -2656,7 +2677,7 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 	if ((sdata->vif.type == NL80211_IFTYPE_AP ||
 	     sdata->vif.type == NL80211_IFTYPE_AP_VLAN) &&
 	    !(sdata->flags & IEEE80211_SDATA_DONT_BRIDGE_PACKETS) &&
-	    ehdr->h_proto != rx->sdata->control_port_protocol &&
+	    (allow_eapol_forward != 0 || ehdr->h_proto != rx->sdata->control_port_protocol) &&
 	    (sdata->vif.type != NL80211_IFTYPE_AP_VLAN || !sdata->u.vlan.sta)) {
 		if (is_multicast_ether_addr(ehdr->h_dest) &&
 		    ieee80211_vif_get_num_mcast_if(sdata) != 0) {
@@ -2971,7 +2992,7 @@ __ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx, u8 data_offset)
 			goto free;
 		}
 
-		if (!ieee80211_frame_allowed(rx, fc))
+		if (!ieee80211_frame_allowed(rx, fc, false))
 			goto free;
 
 		ieee80211_deliver_skb(rx);
@@ -3049,6 +3070,7 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 	struct net_device *dev = sdata->dev;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
 	__le16 fc = hdr->frame_control;
+	bool was_fragmented = ieee80211_is_frag(hdr);
 	ieee80211_rx_result res;
 	bool port_control;
 	int err;
@@ -3080,7 +3102,7 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 	if (res != RX_CONTINUE)
 		return res;
 
-	if (!ieee80211_frame_allowed(rx, fc))
+	if (!ieee80211_frame_allowed(rx, fc, was_fragmented))
 		return RX_DROP_MONITOR;
 
 	/* directly handle TDLS channel switch requests/responses */
