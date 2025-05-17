@@ -10,12 +10,14 @@ This repository contains the code and some of the data used in the paper *Fragil
 	- [2.1. Prerequisites](#survey-prerequisites)
 	- [2.2. Usage of the Code](#survey-usage)
 	- [2.3. Other Remarks](#survey-other)
-- [3. Mesh A-MSDU Attack and Defense](#mesh)
-	- [3.1. Proof-of-Concept Attack](#mesh-poc)
-	- [3.2. Proof-of-Concept Defence](#mesh-defence)
-- [4. Appendix: Detailed Data](#appendix)
-	- [4.1. Cities and ISP Analysis](#appendix-cities-isp)
-	- [4.2. Vendor Analysis](#appendix-vendors)
+- [3. Simulated Experiments](#simulations)
+	- [3.1. Patched Drivers and Code](#simul-drivers-code)
+	- [3.2. Simulated Survey Tests](#simul-survey)
+	- [3.3. Simulated Mesh Attack and Defense](#simul-mesh)
+- [4. Mesh A-MSDU Defense Details](#mesh-defence)
+- [5. Appendix: Detailed Data](#appendix)
+	- [5.1. Cities and ISP Analysis](#appendix-cities-isp)
+	- [5.2. Vendor Analysis](#appendix-vendors)
 
 <a id="survey"></a>
 ## 2. FragAttack Survey
@@ -29,6 +31,20 @@ The Python scripts are built upon the 'fragattacks' repository by Mathy Vanhoef.
 
 <a id="survey-usage"></a>
 ### 2.2. Usage of the Code
+
+First install the appropriate Python virtual environment:
+
+	python3 -m venv venv
+	source venv/bin/activate
+	pip install -r requirements.txt
+
+Then inside `main.py`, modify the four global parameters `dongle*_inf` and `dongle*_mac` with the name of the wireless network card and MAC address of the Wi-Fi dongles to use, respectively.
+
+Now load the created python virtual environment as root and execute the scanning script:
+
+	sudo su
+	source venv/bin/activate
+	python3 main.py
 
 The core functionality of the code is in `main.py`, which relies on `tests.py` for functions that construct Wi-Fi frames used in the tests. Since surveys may need to be conducted in segments due to factors like battery limitations or device disconnections, the collected data must be merged before analysis. This can be done using the `combine.py` script.
 
@@ -48,48 +64,85 @@ If everything is configured properly, the code will have output as follows:
 	- Support advertised in the RSNX element can be detected using the filter `(wlan.rsn.capabilities & 0x0400) != 0`.
 	- Support advertised in the RSNX element can be detected using the filter `wlan.rsnx.spp_amsdu_capable == True`.
 
-<a id="mesh"></a>
-## 3. Mesh A-MSDU Attack and Defense
 
-<a id="mesh-poc"></a>
-### 3.1. Proof-of-Concept Attack
+<a id="simulations"></a>
+## 3. Simulated Experiments
 
-The directory `hostap-mesh-poc` contains our proof-of-concept attack against mesh networks, which performs the _Spoofing A-MSDU_ attack against a mesh client. All the commands below are relative, i.e., inside, this directory.
+<a id="simul-drivers-code"></a>
+### 3.1. Patched Drivers and Code
 
-To execute this experiment, first compile our modified `wpa_supplicant` code and initialize a Python virtual environment. This only needs to be done once:
+First install all dependencies. This was tested on Ubuntu 20.04 LTS:
 
-	cd wpa_supplicant
-	cp defconfig .config
-	make -j 4
+	sudo apt install bison flex linux-headers-$(uname -r) \
+		libnl-3-dev libnl-genl-3-dev libnl-route-3-dev libssl-dev \
+		libdbus-1-dev git pkg-config build-essential macchanger net-tools \
+		python3-venv python3-scapy
 
-	cd ../research
-	python3 -m venv venv
+**Now disable Wi-Fi in your network manager.** Otherwise, the kernel will crash when loading the modified drivers below (due to issues with WEXT).
+
+To simulate all experiments,  we used virtualized Wi-Fi network cards, and modified Wi-Fi drivers to simulate vulnerable networks. We first need to build these tools and drivers, and then install the modified drivers:
+
+	./build_all.sh
+	cd linux-driver-backports-6.1.110
+	sudo make install
+	# reboot after installing modified drivers
+
+Note that `./build_all.sh` only compiles the virtual `mac80211_hwsim` driver that we used in our experiments. If you also want to test other networks cards, then use another defconfig file such as `defconfig-wifi` in `./build_all.sh` which will compile all backported wireless drivers.
+
+
+<a id="simul-survey"></a>
+### 3.2. Simulated Survey Tests
+
+We created patched Linux kernel modules to create a Wi-Fi network that is vulnerable to the 5 surveyed FragAttack CVEs. Note that we did not test for CVE-2020-26145 in our survey (see Section 3.2) and hence we also do not simulate it here. All combined, this means our virtual setup can reproduce the Plaintext Full frame injection (CVE-2020-26140), Fragmented Plaintext frame injection (CVE-2020-26143), EAPOL Forward (CVE-2020-26139), and Spoofing A-MSDUs (CVE-2020-24588). If you are interested in how these vulnerabilities are reproduced, you can execute `git show 96843ae9`.
+
+You can reproduce the detection of the above 5 vulnerabilities by opening a terminal and then executing the following five scripts:
+
+1. In the first terminal, execute `./start_hwsim.sh`. This creates a virtual Wi-Fi setup.
+2. In the second terminal, execute `./start_ap.sh`. This starts the vulnerable access point.
+3. In the third terminal, execute `./start_client.sh`. This starts a client that connects to the access point.
+4. In the fourth terminal, execute `sudo ./gentraffic.py`. This simulates legitimate network traffic.
+5. In the fifth terminal, execute the following:
+
+	```
+	sudo su
 	source venv/bin/activate
-	pip install -r libwifi/requirements.txt
+	python3 main.py
+	```
 
-We patched `wpa_supplicant` so our python script can easily access the negotiated session keys used by a mesh client, which enables us to more easily verify that an attack succeeded.
+The tool should now output in green each of the following lines at least once:
 
-In our experiments we used virtualized Wi-Fi network cards, which can be added as follows on most Linux distributions:
+	PLAINTEXT BROADCAST PACKET CAPTURED: Plain. full (CVE-2020-26140)
+	PLAINTEXT BROADCAST PACKET CAPTURED: Plain. frag. (CVE-2020-26143)
+	FORWARDED PACKET CAPTURED: EAPOL forward (CVE-2020-26139)
+	BROADCAST PACKET CAPTURED: Fake EAPOL (CVE-2020-26144)
+	ENTERPRISE: Spoof. A-MSDU (CVE-2020-24588)
 
-	# First turn Wi-Fi off in your network manager
-	sudo modprobe mac80211_hwsim radios=4
-	sudo rfkill unblock wifi
-	sudo ifconfig hwsim0 up
+When one of these lines is printed, it means the network was detected as affected by this vulnerability. Due to sensitivity to frame transmission timing, you might have to execute `python3 main.py` several times before all vulnerabilities are rediscovered (at most 10 in our tests).
 
-Finally, you can start the first mesh client:
+Note: optionally, you can also provide an argument to `./start_hwsim.sh [plain-full, plain-frag, eapol-forward, spoof-amsdu, fake-eapol]` to only simulate a single vulnerability in each run.
 
-	cd research
-	sudo ../wpa_supplicant/wpa_supplicant -i wlan1 -c mesh1.conf
 
-And then you can start the attacker's mesh client, which will perform the attack:
+<a id="simul-mesh"></a>
+### 3.3. Simulated Mesh Attack and Defense
 
+The directory `hostap-mesh-poc` contains our proof-of-concept attack against mesh networks, which performs the _Spoofing A-MSDU_ attack against a mesh client. Note that we patched `wpa_supplicant` so our python script can easily access the negotiated session keys used by a mesh client, which enables us to more easily verify that an attack succeeded.
+
+You can reproduce the mesh attack by executing the following three scripts (close all other scripts first):
+
+1. In the first terminal, execute `./start_hwsim.sh mesh-attack`. This creates a virtual Wi-Fi setup with the existing A-MSDU defenses enabled.
+2. In the second terminal, execute `./start_mesh1.sh`. This starts the victim mesh client.
+3. In the third terminal, execute the following:
+
+	```
+	cd fragattacks-survey-public/hostap-mesh-poc/research
 	sudo su
 	source venv/bin/activate
 	./client.py wlan1 wlan2
+	```
 
 This python script has as first argument the network interface of the victim, and as second argument the network interface of the attacker. This allows the script to monitor the network interface of the victim to automatically detect whether the _Spoofing A-MSDU_ attack successfully injected a packet.
 
-The following output will be shown in the attack succeeded:
+The following output will be shown if the attack succeeded:
 
 	...
 	wlan2: Control interface command 'GET tk'wlan2: Control interface command 'GET tk'
@@ -112,7 +165,20 @@ The following output will be shown in the attack succeeded:
 	<IP  version=4 ihl=5 tos=0x0 len=61 id=1 flags= frag=0 ttl=64 proto=udp chksum=0x6a9c src=1.2.3.4 dst=5.6.7.8 |<UDP  sport=domain dport=domain len=41 chksum=0xa671 |<DNS  id=21353 qr=0 opcode=13 aa=1 tc=0 rd=1 ra=0 z=1 ad=1 cd=1 rcode=refused qdcount=27745 ancount=29797 nscount=25632 arcount=16685 qd=[<DNSQR  qname=b'.' qtype=17493 unicastresponse=0 qclass=8289 |>, <DNSQR  qname=b'.' qtype=24931 unicastresponse=0 qclass=27424 |>, <DNSQR  qname=b'.' qtype=27237 unicastresponse=0 qclass=25460 |>, <Raw  load=b'ion' |>] |>>>
 
 
-If the attack fails, e.g., if you used the modified drivers below to prevent attacks, the following output will eventually be shown:
+You can now re-do this experiment with our drivers that include our new mesh defense. First stop all scripts (you might have to execute CTRL+C twice to stop the mesh client) then execute:
+
+1. In the first terminal, execute `./start_hwsim.sh mesh-defense`. This creates a virtual Wi-Fi setup.
+2. In the second terminal, execute `./start_mesh1.sh`. This restarts the victim mesh client, now with our novel mesh defense.
+3. In the third terminal, execute the following:
+
+	```
+	cd fragattacks-survey-public/hostap-mesh-poc/research
+	sudo su
+	source venv/bin/activate
+	./client.py wlan1 wlan2
+	```
+
+The attack should now fail, i.e., the following output will eventually be shown:
 
 	>> Couldn't detect injected packet. Client looks secure.
 
@@ -120,16 +186,9 @@ You can also manually confirm that the attack worked by running a network sniffe
 
 
 <a id="mesh-defence"></a>
-### 3.2. Proof-of-Concept Defence
+### 4. Mesh A-MSDU Defense Details
 
-The directory `linux-driver-backports-6.1.110` contains modified Linux drivers that defend against the _Spoofing A-MSDU_ attack (CVE-2020-24588) in the context of mesh networks. It is compatible with Linux kernels 6.1 and below. To compile and install these drivers, execute the following:
-
-	cd linux-driver-backports-6.1.110
-	make defconfig-hwsim
-	make -j 4
-	sudo make install
-
-This compiles only the virtual `mac80211_hwsim` driver that we used in our experiments. If you also want to test our networks cards, then another defconfig file such as `defconfig-wifi` which compiles all backported wireless drivers.
+The directory `linux-driver-backports-6.1.110` contains modified Linux drivers that can be configured to defend against the _Spoofing A-MSDU_ attack (CVE-2020-24588) in the context of mesh networks. It is compatible with Linux kernels 6.1 and below. To compile and install these drivers, see [3.1. Patched Drivers](#simul-drivers-code).
 
 Specifically, the following patch prevents the attack:
 
@@ -194,10 +253,10 @@ Specifically, the following patch prevents the attack:
 
 
 <a id="appendix"></a>
-## 4. Appendix: Detailed Data
+## 5. Appendix: Detailed Data
 
 <a id="appendix-cities-isp"></a>
-### 4.1 Cities and ISP Analysis
+### 5.1 Cities and ISP Analysis
 
 Table 1 in our paper gives the percentage of vulnerable APs out of those that met the test preconditions, i.e., out of the actual tested APs. The below table contains exactly how many APs were vulnerable followed by exactly how many APs were tested. Notice that the _Plain. full_ (CVE-2020-
 26140) and _Plain. frag._ (CVE-2020-26143) tests have the same preconditions.
@@ -205,7 +264,7 @@ Table 1 in our paper gives the percentage of vulnerable APs out of those that me
 ![Example output of the survey tool](survey-detials.png)
 
 <a id="appendix-vendors"></a>
-### 4.2. Vendor Analysis
+### 5.2. Vendor Analysis
 
 Table 3 below presents the percentage of vulnerable APs for each vendor. These percentages are calculated based only on the networks that met the preconditions for the test, for City A, B and C in 2025. Vendors with fewer than 10 tested APs are combined into the "other" group.
 
