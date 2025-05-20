@@ -14,7 +14,9 @@ This repository contains the code and some of the data used in the paper *Fragil
 	- [3.1. Patched Drivers and Code](#simul-drivers-code)
 	- [3.2. Simulated Survey Tests](#simul-survey)
 	- [3.3. Simulated Mesh Attack and Defense](#simul-mesh)
-- [4. Mesh A-MSDU Defense Details](#mesh-defence)
+- [4. Mesh A-MSDU Attack and Defense Details](#mesh-details)
+	- [4.1. Vulnerability Details: CVE-2025-27558](#mesh-vulnerability)
+	- [4.2. Defense Proof-of-Concept](#mesh-defense)	 
 - [5. Appendix: Detailed Data](#appendix)
 	- [5.1. Cities and ISP Analysis](#appendix-cities-isp)
 	- [5.2. Vendor Analysis](#appendix-vendors)
@@ -184,9 +186,32 @@ The attack should now fail, i.e., the following output will eventually be shown:
 
 You can also manually confirm that the attack worked by running a network sniffer on the interface of the victim, which in the above examples was `wlan1`. You can also monitor the special interface `hwsim0` that displays all raw Wi-Fi frames of the virtual network cards.
 
+<a id="mesh-details"></a>
+### 4. Mesh A-MSDU Attack and Defense Details
 
-<a id="mesh-defence"></a>
-### 4. Mesh A-MSDU Defense Details
+<a id="mesh-vulnerability"></a>
+#### 4.1. Vulnerability Details: CVE-2025-27558
+
+After the disclosure of the "FragAttacks" vulnerabilities, in particular CVE-2020-24588, an update was approved to detect if a malicious outsider turned an MSDU into an A-MSDU by changing the unauthenticated A-MSDU Present subfield in the QoS Control field to 1.
+
+When an MSDU is turned into an A-MSDU in a nonmesh BSS, this can be detected by comparing the destination address of the first A-MSDU subframe to AA:AA:03:00:00:00. The following figure illustrates this check, where the bytes shown are those of an example MSDU, the top shows how these bytes are parsed as an MSDU, and the bottom shows how these bytes are parsed as an A-MSDU:
+
+![Layout of A-MSDU frames in non-mesh networks](./amsdu-normal.png)
+
+This shows that when an MSDU is turned into an A-MSDU by a malicious outsider, the destination address of the first subframe in the A-MSDU will be AA:AA:03:00:00:00 which equals the first 6 bytes of the RFC1042 header (specifically an LLC header followed by a SNAP header). Based on this, the submission [On A-MSDU addressing](https://mentor.ieee.org/802.11/dcn/21/11-21-0816-03-000mon-a-msdu-addressing.docx) added a defense to drop the A-MSDU if the destination address of the first A-MSDU subframe equals AA:AA:03:00:00:00.
+
+However, in a mesh BSS (MBSS), all MSDU frames start with a 6-byte Mesh Control field, followed by the RFC1042 header. The following figure shows example bytes of an MSDU that is sent by a mesh STA in a mesh BSS (MBSS), parsed as an MSDU (top), and when parsed as an A-MSDU (bottom):
+
+![Layout of A-MSDU frames in mesh networks](./amsdu-mesh.png)
+
+If parsed as an MSDU (top), the frame starts with a 6-byte Mesh Control field, where the two least significant bits of the Flags subfield indicate the length of the optional Mesh Address Extension field, shown in yellow and bold, which is either 0, 6, or 12 bytes long.
+
+When the same bytes are parsed as an A-MSDU in a MBSS (bottom), the destination field of the first A-MSDU does not equal AA-AA-03-00-00-00-00, meaning the previously-introduced defense does not work in an MBSS. Instead, to detect the attack, when a mesh STA receives an A-MSDU, the first byte should be parsed as the Flags field, and the 6-bytes at the offset where the RFC1042 header would start has to be compared against the value AA-AA-03-00-00-00-00 to detect the attack.
+
+The above issue in an MBSS was confirmed with wpa_supplicant 2.11 on Linux 6.12 using the mac80211_hwsim driver: under the right conditions, a malicious outsider could abuse this to inject arbitrary frames into the MBSS. This vulnerability was assigned CVE-2025-27558. A proof-of-concept of the defense proposed in this submission was implemented on Linux kernel 6.1.110 and successfully detected when a malicious outsider changed the A-MSDU Present subfield to 1.
+
+<a id="mesh-defense"></a>
+#### 4.2. Defense Proof-of-Concept
 
 The directory `linux-driver-backports-6.1.110` contains modified Linux drivers that can be configured to defend against the _Spoofing A-MSDU_ attack (CVE-2020-24588) in the context of mesh networks. It is compatible with Linux kernels 6.1 and below. To compile and install these drivers, see [3.1. Patched Drivers](#simul-drivers-code).
 
