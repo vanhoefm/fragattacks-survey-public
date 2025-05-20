@@ -187,10 +187,10 @@ The attack should now fail, i.e., the following output will eventually be shown:
 You can also manually confirm that the attack worked by running a network sniffer on the interface of the victim, which in the above examples was `wlan1`. You can also monitor the special interface `hwsim0` that displays all raw Wi-Fi frames of the virtual network cards.
 
 <a id="mesh-details"></a>
-### 4. Mesh A-MSDU Attack and Defense Details
+## 4. Mesh A-MSDU Attack and Defense Details
 
 <a id="mesh-vulnerability"></a>
-#### 4.1. Vulnerability Details: CVE-2025-27558
+### 4.1. Vulnerability Details: CVE-2025-27558
 
 After the disclosure of the "FragAttacks" vulnerabilities, in particular CVE-2020-24588, an update was approved to detect if a malicious outsider turned an MSDU into an A-MSDU by changing the unauthenticated A-MSDU Present subfield in the QoS Control field to 1.
 
@@ -211,7 +211,7 @@ When the same bytes are parsed as an A-MSDU in a MBSS (bottom), the destination 
 The above issue in an MBSS was confirmed with wpa_supplicant 2.11 on Linux 6.12 using the mac80211_hwsim driver: under the right conditions, a malicious outsider could abuse this to inject arbitrary frames into the MBSS. This vulnerability was assigned CVE-2025-27558. A proof-of-concept of the defense proposed in this submission was implemented on Linux kernel 6.1.110 and successfully detected when a malicious outsider changed the A-MSDU Present subfield to 1.
 
 <a id="mesh-defense"></a>
-#### 4.2. Defense Proof-of-Concept
+### 4.2. Defense Proof-of-Concept
 
 The directory `linux-driver-backports-6.1.110` contains modified Linux drivers that can be configured to defend against the _Spoofing A-MSDU_ attack (CVE-2020-24588) in the context of mesh networks. It is compatible with Linux kernels 6.1 and below. To compile and install these drivers, see [3.1. Patched Drivers](#simul-drivers-code).
 
