@@ -95,7 +95,7 @@ Note that `./build_all.sh` only compiles the virtual `mac80211_hwsim` driver tha
 <a id="simul-survey"></a>
 ### 3.2. Simulated Survey Tests
 
-We created patched Linux kernel modules to create a Wi-Fi network that is vulnerable to the 5 surveyed FragAttack CVEs. Note that we did not test for CVE-2020-26145 in our survey (see Section 3.2) and hence we also do not simulate it here. All combined, this means our virtual setup can reproduce the Plaintext Full frame injection (CVE-2020-26140), Fragmented Plaintext frame injection (CVE-2020-26143), EAPOL Forward (CVE-2020-26139), and Spoofing A-MSDUs (CVE-2020-24588). If you are interested in how these vulnerabilities are reproduced, you can execute `git show 96843ae9`.
+We created patched Linux kernel modules to create a Wi-Fi network that is vulnerable to the 5 surveyed FragAttack CVEs. Note that we did not test for CVE-2020-26145 in our survey (see Section 3.2) and hence we also do not simulate it here. All combined, this means our virtual setup can reproduce the Plaintext Full frame injection (CVE-2020-26140), Fragmented Plaintext frame injection (CVE-2020-26143), EAPOL Forward (CVE-2020-26139), and Spoofing A-MSDUs (CVE-2020-24588). If you are interested in how these vulnerabilities are reproduced, see [commit d9783f2](https://github.com/vanhoefm/fragattacks-survey-public/commit/d9783f2e5d920919fcd7058e721372bb5008c82f).
 
 You can reproduce the detection of the above 5 vulnerabilities by opening a terminal and then executing the following five scripts:
 
