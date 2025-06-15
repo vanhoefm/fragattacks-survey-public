@@ -186,6 +186,13 @@ The attack should now fail, i.e., the following output will eventually be shown:
 
 You can also manually confirm that the attack worked by running a network sniffer on the interface of the victim, which in the above examples was `wlan1`. You can also monitor the special interface `hwsim0` that displays all raw Wi-Fi frames of the virtual network cards.
 
+The script `./client.py` also as the following paramaters that were used to confirm the correctness of our kernel patch:
+
+- `--test-normal`: send both a normal MSDU and A-MSDU to confirm that they are still received correctly with the patch.
+
+- `--six-addresses`: perform either the attack of the normal test using 6 addresses, i.e., with a Mesh Address Extension field of 12 bytes.
+
+
 <a id="mesh-details"></a>
 ## 4. Mesh A-MSDU Attack and Defense Details
 
